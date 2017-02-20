@@ -6,7 +6,7 @@ CREATE TABLE sites(
   name   varchar NOT NULL CHECK (name <> '')
 );
 CREATE TABLE statuses(
-  site_id bigint NOT NULL REFERENCES sites,
+  site_id integer NOT NULL REFERENCES sites,
   status integer NOT NULL,
   seconds float NOT NULL,
   created_at timestamp NOT NULL DEFAULT now()

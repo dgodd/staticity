@@ -6,12 +6,11 @@ require "json"
 sites = {} of Int32 => String
 DATABASE_URL = "postgres:///staticity"
 PG_DB = DB.open(DATABASE_URL)
-PG_DB.query "SELECT id,name FROM sites" do |rs|
+PG_DB.query "SELECT id,name FROM sites ORDER BY id" do |rs|
   rs.each do
     sites[rs.read(Int32)] = rs.read(String)
   end
 end
-p sites
 
 class Site
   JSON.mapping(
@@ -38,6 +37,14 @@ ws "/socket" do |socket|
 
   sites.each do |id,name|
     socket.send ["site",{"id"=>id,"name"=>name}].to_json
+  end
+
+  sql = "select site_id,status,seconds from (select site_id,status,seconds,created_at,rank() over (partition by site_id order by created_at desc) as r from statuses) as s where r<=10 order by created_at"
+  PG_DB.query sql do |rs|
+    rs.each do
+      status = {"site_id"=>rs.read(Int32), "status"=>rs.read(Int32), "seconds"=>rs.read(Float64)}
+      socket.send ["status", status].to_json
+    end
   end
 
   socket.on_close do
@@ -84,7 +91,7 @@ spawn do
       rescue e
         puts "EXCEPTION IN INSERT: #{e}"
       end
-      sleep 4
+      sleep 1
     end
   end
 end
