@@ -39,7 +39,7 @@ ws "/socket" do |socket|
     socket.send ["site",{"id"=>id,"name"=>name}].to_json
   end
 
-  sql = "select site_id,status,seconds from (select site_id,status,seconds,created_at,rank() over (partition by site_id order by created_at desc) as r from statuses) as s where r<=10 order by created_at"
+  sql = "select site_id,status,seconds from (select site_id,status,seconds,created_at,rank() over (partition by site_id order by created_at desc) as r from statuses) as s where r<=30 order by created_at"
   PG_DB.query sql do |rs|
     rs.each do
       status = {"site_id"=>rs.read(Int32), "status"=>rs.read(Int32), "seconds"=>rs.read(Float64)}

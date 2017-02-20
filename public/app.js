@@ -20,7 +20,7 @@ const store = new Vuex.Store({
       obj = state.statusHash[site] || { site: site, status: null, seconds: [] }
       obj.status = status.status
       obj.seconds.push(status.seconds)
-      if (obj.seconds.length > 10)
+      if (obj.seconds.length > 30)
         obj.seconds.shift()
       newStatus = {}
       newStatus[site] = obj
@@ -29,7 +29,7 @@ const store = new Vuex.Store({
   }
 })
 
-var MyBar = {
+var Bar = {
   props: ['val', 'index', 'mult'],
   template: '<g class="bar" v-bind:transform="translate"><rect v-bind:height="height" v-bind:y="offset" width="3" style="fill:#aaa;"></rect></g>',
   computed: {
@@ -47,10 +47,10 @@ var MyBar = {
 Vue.component('barchart', {
   props: ['data'],
   components: {
-    'bar': MyBar
+    'bar': Bar
   },
   template: `
-	  <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="chart" height="20" width="30" aria-labelledby="title" role="img">
+	  <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="chart" height="20" width="60" aria-labelledby="title" role="img">
 	    <title id="title">A bart chart showing information</title>
       <bar v-for="(item,index) in data" v-bind:mult="mult" v-bind:val="item" v-bind:index="index"></bar>
 	  </svg>
@@ -74,17 +74,17 @@ Vue.component('barchart', {
 Vue.component('status-line', {
   props: ['s'],
   template: `
-    <li>
-      <span>{{ s.status }}</span>
-      <span>{{ s.site }}</span>
-      <barchart v-bind:data="s.seconds"></barchart>
-      <span>{{ lastValue }}</span>
-      <span>{{ maxValue }}</span>
-    </li>
+    <tr>
+      <td>{{ s.status }}</td>
+      <td><barchart v-bind:data="s.seconds"></barchart></td>
+      <td align="right">{{ lastValue }}</td>
+      <td align="right">{{ maxValue }}</td>
+      <td>{{ s.site }}</td>
+    </tr>
   `,
   computed: {
     lastValue: function() {
-      return this.s.seconds[this.s.seconds.length - 1]
+      return this.s.seconds[this.s.seconds.length - 1].toPrecision(2)
     },
     maxValue: function() {
       var max = 0;
@@ -93,7 +93,7 @@ Vue.component('status-line', {
           max = v
         }
       }
-      return max
+      return max.toPrecision(2)
     }
   }
 })

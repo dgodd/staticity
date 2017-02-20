@@ -2,15 +2,15 @@
 <html>
   <head>
     <title>Staticity</title>
-    <!-- <link href="/css/app.css" rel="stylesheet" type="text/css" /> -->
+    <link href="/app.css" rel="stylesheet" type="text/css" />
   </head>
   <body>
     <div id="staticity">
       <div><b>Connected:</b> {{connected}}</div>
       <div v-if="error">{{error}}</div>
-      <ul class="statuses" >
+      <table class="statuses">
 	<status-line v-for="s in statuses" v-bind:s="s"></status-line>
-      </ul>
+      </table>
     </div>
     <script src="//cdnjs.cloudflare.com/ajax/libs/vue/2.1.10/vue.min.js"></script>
     <script src="//cdnjs.cloudflare.com/ajax/libs/vuex/2.1.2/vuex.min.js"></script>
