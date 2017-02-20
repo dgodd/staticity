@@ -2,6 +2,7 @@ const store = new Vuex.Store({
   state: {
     connected: false,
     error: null,
+    sites: {},
     statusHash: {}
   },
   mutations: {
@@ -11,14 +12,18 @@ const store = new Vuex.Store({
     setError (state, val) {
       state.error = val
     },
+    setSite (state, site) {
+      state.sites[site.id] = site.name
+    },
     setStatus (state, status) {
-      obj = state.statusHash[status.site] || { site: status.site, status: null, seconds: [] }
+      site = state.sites[status.site_id]
+      obj = state.statusHash[site] || { site: site, status: null, seconds: [] }
       obj.status = status.status
       obj.seconds.push(status.seconds)
       if (obj.seconds.length > 10)
         obj.seconds.shift()
       newStatus = {}
-      newStatus[status.site] = obj
+      newStatus[site] = obj
       state.statusHash = Object.assign({}, state.statusHash, newStatus)
     }
   }
@@ -107,7 +112,7 @@ var wsUri = "ws://" + location.host + "/socket";
 function initWebSocket()
 {
   websocket = new WebSocket(wsUri);
-  websocket.onopen = function(evt) { 
+  websocket.onopen = function(evt) {
     store.commit('setConnected', true);
   };
   websocket.onclose = function(evt) {
@@ -118,7 +123,14 @@ function initWebSocket()
   };
   websocket.onmessage = function(evt) {
     var data = JSON.parse(evt.data)
-    store.commit('setStatus', data);
+    switch(data[0]) {
+      case 'site':
+        store.commit('setSite', data[1]);
+        break;
+      case 'status':
+        store.commit('setStatus', data[1]);
+        break;
+    }
   };
   websocket.onerror = function(evt) {
     store.commit('setError', evt.data);

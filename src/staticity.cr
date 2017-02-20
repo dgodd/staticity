@@ -1,12 +1,31 @@
 require "kemal"
+require "db"
+require "pg"
 require "json"
 
-class Config
+sites = {} of Int32 => String
+DATABASE_URL = "postgres:///staticity"
+PG_DB = DB.open(DATABASE_URL)
+PG_DB.query "SELECT id,name FROM sites" do |rs|
+  rs.each do
+    sites[rs.read(Int32)] = rs.read(String)
+  end
+end
+p sites
+
+class Site
   JSON.mapping(
-    sites: Array(String),
+    id: Int32,
+    name: String,
   )
 end
-config = Config.from_json(File.read("config.json"))
+class Status
+  JSON.mapping(
+    site_id: Int32,
+    status: Int32,
+    seconds: Float64,
+  )
+end
 
 websockets = {} of String => HTTP::WebSocket
 
@@ -16,6 +35,10 @@ ws "/socket" do |socket|
   # socket.send "Hello from Kemal!"
   uuid = SecureRandom.uuid
   websockets[uuid] = socket
+
+  sites.each do |id,name|
+    socket.send ["site",{"id"=>id,"name"=>name}].to_json
+  end
 
   socket.on_close do
     puts "Closing socket"
@@ -29,21 +52,40 @@ def broadcast(websockets, hash)
   end
 end
 
+PG.connect_listen(DATABASE_URL, "site", "status") do |n|
+  puts "    got: #{n.payload} on #{n.channel}"
+  case n.channel
+  when "site"
+    site = Site.from_json(n.payload)
+    sites[site.id] = site.name
+    payload = ["site", site].to_json
+    websockets.each do |_,socket|
+      socket.send payload
+    end
+  when "status"
+    payload = ["status", Status.from_json(n.payload)].to_json
+    websockets.each do |_,socket|
+      socket.send payload
+    end
+  else
+    ## no-op
+  end
+end
 
 spawn do
   while(true)
-    config.sites.each do |site|
-      puts "Site: #{site}"
-      start = Time.utc_ticks
-      response = HTTP::Client.get site
-      elapsed = (Time.utc_ticks - start).to_f64 / Time::Span::TicksPerSecond
-      broadcast(websockets, { "site" => site, "status" => response.status_code, "seconds" => elapsed })
+    sites.each do |id,site|
+      begin
+        puts "Site: #{site}"
+        start = Time.utc_ticks
+        response = HTTP::Client.get site
+        elapsed = (Time.utc_ticks - start).to_f64 / Time::Span::TicksPerSecond
+        PG_DB.exec("INSERT INTO statuses(site_id, status, seconds) VALUES($1, $2, $3)", id, response.status_code, elapsed)
+      rescue e
+        puts "EXCEPTION IN INSERT: #{e}"
+      end
+      sleep 4
     end
-
-    # broadcast(websockets, { "site" => "http://example.com", "status" => 200, "seconds" => rand })
-    # sleep 2
-    # broadcast(websockets, { "site" => "http://example.org", "status" => 201, "seconds" => rand })
-    # sleep 2
   end
 end
 
